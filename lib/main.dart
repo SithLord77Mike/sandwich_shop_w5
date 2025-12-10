@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sandwich_shop/views/app_styles.dart';
 import 'package:sandwich_shop/models/sandwich.dart';
 import 'package:sandwich_shop/models/cart.dart';
@@ -14,9 +15,13 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'Sandwich Shop App',
-      home: OrderScreen(maxQuantity: 5),
+    return ChangeNotifierProvider<Cart>(
+      create: (_) => Cart(),
+      child: MaterialApp(
+        title: 'Sandwich Shop App',
+        debugShowCheckedModeBanner: false,
+        home: const OrderScreen(maxQuantity: 5),
+      ),
     );
   }
 }
@@ -31,7 +36,6 @@ class OrderScreen extends StatefulWidget {
 }
 
 class _OrderScreenState extends State<OrderScreen> {
-  final Cart _cart = Cart();
   final TextEditingController _notesController = TextEditingController();
 
   SandwichType _selectedSandwichType = SandwichType.veggieDelight;
@@ -39,7 +43,6 @@ class _OrderScreenState extends State<OrderScreen> {
   BreadType _selectedBreadType = BreadType.white;
   int _quantity = 1;
 
-  // Last confirmation message to show in the UI
   String? _confirmationMessage;
 
   @override
@@ -64,6 +67,8 @@ class _OrderScreenState extends State<OrderScreen> {
         breadType: _selectedBreadType,
       );
 
+      final Cart cart = Provider.of<Cart>(context, listen: false);
+
       final sizeText = _isFootlong ? 'footlong' : 'six-inch';
 
       final noteText = _notesController.text.trim();
@@ -73,15 +78,14 @@ class _OrderScreenState extends State<OrderScreen> {
           'Added $_quantity $sizeText ${sandwich.name} sandwich(es) '
           'on ${_selectedBreadType.name} bread.\n$notePart';
 
+      cart.add(sandwich, quantity: _quantity);
+
       setState(() {
-        _cart.add(sandwich, quantity: _quantity);
         _confirmationMessage = confirmationMessage;
       });
 
-      // What you see in the terminal
       debugPrint(confirmationMessage);
 
-      // Quick SnackBar so they see immediate feedback
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -185,17 +189,10 @@ class _OrderScreenState extends State<OrderScreen> {
     return null;
   }
 
-  // Permanent cart summary text
-  String _cartSummaryText() {
-    final itemLabel = _cart.totalItems == 1 ? 'item' : 'items';
-    return 'Cart: ${_cart.totalItems} $itemLabel • £${_cart.totalPrice.toStringAsFixed(2)}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // no custom leading -> hamburger appears automatically with drawer
         title: Row(
           children: [
             SizedBox(
@@ -210,20 +207,35 @@ class _OrderScreenState extends State<OrderScreen> {
           ],
         ),
         actions: [
+          Consumer<Cart>(
+            builder: (context, cart, child) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.shopping_cart),
+                    const SizedBox(width: 4),
+                    Text('${cart.totalItems}'),
+                  ],
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.shopping_cart),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => CartScreen(cart: _cart),
+                  builder: (context) => const CartScreen(),
                 ),
               );
             },
           ),
         ],
       ),
-      drawer: _AppDrawer(cart: _cart),
+      drawer: const _AppDrawer(),
       body: Center(
         child: SingleChildScrollView(
           child: Column(
@@ -231,25 +243,32 @@ class _OrderScreenState extends State<OrderScreen> {
             children: [
               const SizedBox(height: 16),
 
-              // PERMANENT CART SUMMARY AT THE TOP
+              // 🔹 THIS IS THE FIXED HEADER THAT UPDATES WHEN CART CHANGES
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Text(
-                  _cartSummaryText(),
-                  key: const Key('cart_summary'),
-                  style: heading2,
-                  textAlign: TextAlign.center,
+                child: Consumer<Cart>(
+                  builder: (context, cart, child) {
+                    final int items = cart.totalItems;
+                    final String itemLabel = items == 1 ? 'item' : 'items';
+                    final String totalText = cart.totalPrice.toStringAsFixed(2);
+
+                    return Text(
+                      'Cart: $items $itemLabel • £$totalText',
+                      key: const Key('cart_summary'),
+                      style: heading2,
+                      textAlign: TextAlign.center,
+                    );
+                  },
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // CONFIRMATION MESSAGE CARD (ALSO NEAR TOP)
               if (_confirmationMessage != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Card(
-                    color: Colors.green.shade50,
+                    color: Colors.greenAccent.shade100,
                     elevation: 2,
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
@@ -265,7 +284,6 @@ class _OrderScreenState extends State<OrderScreen> {
 
               const SizedBox(height: 20),
 
-              // Big sandwich image
               SizedBox(
                 height: 300,
                 child: Image.asset(
@@ -283,7 +301,6 @@ class _OrderScreenState extends State<OrderScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Sandwich type dropdown
               DropdownMenu<SandwichType>(
                 width: double.infinity,
                 label: const Text('Sandwich Type'),
@@ -295,7 +312,6 @@ class _OrderScreenState extends State<OrderScreen> {
 
               const SizedBox(height: 20),
 
-              // Six-inch / Footlong switch
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -310,7 +326,6 @@ class _OrderScreenState extends State<OrderScreen> {
 
               const SizedBox(height: 20),
 
-              // Bread dropdown
               DropdownMenu<BreadType>(
                 width: double.infinity,
                 label: const Text('Bread Type'),
@@ -322,7 +337,6 @@ class _OrderScreenState extends State<OrderScreen> {
 
               const SizedBox(height: 20),
 
-              // Quantity selector
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -341,7 +355,6 @@ class _OrderScreenState extends State<OrderScreen> {
 
               const SizedBox(height: 20),
 
-              // Notes field
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: TextField(
@@ -354,7 +367,6 @@ class _OrderScreenState extends State<OrderScreen> {
 
               const SizedBox(height: 20),
 
-              // Add to Cart button
               Center(
                 child: StyledButton(
                   onPressed: _getAddToCartCallback(),
@@ -366,14 +378,13 @@ class _OrderScreenState extends State<OrderScreen> {
 
               const SizedBox(height: 16),
 
-              // View Cart button (opens CartScreen)
               Center(
                 child: StyledButton(
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => CartScreen(cart: _cart),
+                        builder: (context) => const CartScreen(),
                       ),
                     );
                   },
@@ -385,7 +396,6 @@ class _OrderScreenState extends State<OrderScreen> {
 
               const SizedBox(height: 16),
 
-              // ✅ Profile button at bottom of OrderScreen
               Center(
                 child: StyledButton(
                   key: const Key('profile_nav_button'),
@@ -450,9 +460,7 @@ class StyledButton extends StatelessWidget {
 }
 
 class _AppDrawer extends StatelessWidget {
-  final Cart cart;
-
-  const _AppDrawer({required this.cart});
+  const _AppDrawer();
 
   @override
   Widget build(BuildContext context) {
@@ -471,7 +479,7 @@ class _AppDrawer extends StatelessWidget {
             leading: const Icon(Icons.home),
             title: const Text('Order'),
             onTap: () {
-              Navigator.pop(context); // stay / return to OrderScreen
+              Navigator.pop(context);
             },
           ),
           ListTile(
@@ -482,7 +490,7 @@ class _AppDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => CartScreen(cart: cart),
+                  builder: (context) => const CartScreen(),
                 ),
               );
             },
@@ -507,9 +515,7 @@ class _AppDrawer extends StatelessWidget {
 }
 
 class CartScreen extends StatefulWidget {
-  final Cart cart;
-
-  const CartScreen({super.key, required this.cart});
+  const CartScreen({super.key});
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -517,7 +523,9 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   Future<void> _navigateToCheckout() async {
-    if (widget.cart.items.isEmpty) {
+    final cart = Provider.of<Cart>(context, listen: false);
+
+    if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Your cart is empty'),
@@ -530,14 +538,12 @@ class _CartScreenState extends State<CartScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CheckoutScreen(cart: widget.cart),
+        builder: (context) => const CheckoutScreen(),
       ),
     );
 
     if (result != null && mounted) {
-      setState(() {
-        widget.cart.clear();
-      });
+      cart.clear();
 
       final String orderId = result['orderId'] as String;
       final String estimatedTime = result['estimatedTime'] as String;
@@ -557,59 +563,63 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cartItems = widget.cart.items;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your Cart'),
       ),
-      drawer: _AppDrawer(cart: widget.cart),
+      drawer: const _AppDrawer(),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Expanded(
-              child: cartItems.isEmpty
-                  ? const Center(
-                      child: Text('Your cart is empty'),
-                    )
-                  : ListView.builder(
-                      itemCount: cartItems.length,
-                      itemBuilder: (context, index) {
-                        final item = cartItems[index];
-                        final price = widget.cart.calculatePriceFor(item);
+        child: Consumer<Cart>(
+          builder: (context, cart, child) {
+            final cartItems = cart.items;
 
-                        return ListTile(
-                          title: Text(
-                            '${item.quantity} × ${item.sandwich.type}',
-                          ),
-                          subtitle: Text(
-                            '${item.sandwich.isFootlong ? 'Footlong' : 'Six-inch'} • ${item.sandwich.breadType}',
-                          ),
-                          trailing: Text(
-                            '£${price.toStringAsFixed(2)}',
-                          ),
-                        );
-                      },
-                    ),
-            ),
-            const SizedBox(height: 20),
-            StyledButton(
-              onPressed: widget.cart.items.isEmpty ? null : _navigateToCheckout,
-              icon: Icons.payment,
-              label: 'Checkout',
-              backgroundColor: Colors.orange,
-            ),
-            const SizedBox(height: 20),
-            StyledButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: Icons.arrow_back,
-              label: 'Back to Order',
-              backgroundColor: Colors.blue,
-            ),
-          ],
+            return Column(
+              children: [
+                Expanded(
+                  child: cartItems.isEmpty
+                      ? const Center(
+                          child: Text('Your cart is empty'),
+                        )
+                      : ListView.builder(
+                          itemCount: cartItems.length,
+                          itemBuilder: (context, index) {
+                            final item = cartItems[index];
+                            final price = cart.calculatePriceFor(item);
+
+                            return ListTile(
+                              title: Text(
+                                '${item.quantity} × ${item.sandwich.type}',
+                              ),
+                              subtitle: Text(
+                                '${item.sandwich.isFootlong ? 'Footlong' : 'Six-inch'} • ${item.sandwich.breadType}',
+                              ),
+                              trailing: Text(
+                                '£${price.toStringAsFixed(2)}',
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 20),
+                StyledButton(
+                  onPressed: cart.items.isEmpty ? null : _navigateToCheckout,
+                  icon: Icons.payment,
+                  label: 'Checkout',
+                  backgroundColor: Colors.orange,
+                ),
+                const SizedBox(height: 20),
+                StyledButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  icon: Icons.arrow_back,
+                  label: 'Back to Order',
+                  backgroundColor: Colors.blue,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

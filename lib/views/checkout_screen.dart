@@ -1,98 +1,180 @@
 import 'package:flutter/material.dart';
-import '../models/cart.dart';
+import 'package:provider/provider.dart';
+import 'package:sandwich_shop/views/app_styles.dart';
+import 'package:sandwich_shop/models/cart.dart';
+import 'package:sandwich_shop/models/sandwich.dart';
+import 'package:sandwich_shop/repositories/pricing_repository.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  final Cart cart;
-
-  const CheckoutScreen({super.key, required this.cart});
+  const CheckoutScreen({super.key});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  bool isProcessing = false;
+  bool _isProcessing = false;
 
-  Future<void> _confirmPayment() async {
+  Future<void> _processPayment() async {
     setState(() {
-      isProcessing = true;
+      _isProcessing = true;
     });
 
-    // Fake payment delay
+    // Simulate processing time
     await Future.delayed(const Duration(seconds: 2));
 
-    final orderId = "ORD${DateTime.now().millisecondsSinceEpoch}";
-    final confirmation = {
+    final DateTime now = DateTime.now();
+    final int timestamp = now.millisecondsSinceEpoch;
+    final String orderId = 'ORD$timestamp';
+
+    // Get the shared cart instance
+    final Cart cart = Provider.of<Cart>(context, listen: false);
+
+    // This map is what CartScreen receives as "result"
+    final Map<String, Object> orderConfirmation = {
       'orderId': orderId,
-      'totalAmount': widget.cart.totalPrice,
-      'itemCount': widget.cart.totalItems,
+      'totalAmount': cart.totalPrice,
+      'itemCount': cart.totalItems,
       'estimatedTime': '15–20 minutes',
     };
 
-    setState(() {
-      isProcessing = false;
-    });
+    if (mounted) {
+      Navigator.pop(context, orderConfirmation);
+    }
+  }
 
-    // Return confirmation back to the caller
-    Navigator.pop(context, confirmation);
+  double _calculateItemPrice(Sandwich sandwich, int quantity) {
+    final PricingRepository repo = PricingRepository();
+    return repo.calculatePrice(
+      quantity: quantity,
+      isFootlong: sandwich.isFootlong,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Checkout"),
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: SizedBox(
+            height: 100,
+            child: Image.asset('assets/images/logo.png'),
+          ),
+        ),
+        title: const Text('Checkout', style: heading1),
+        actions: [
+          // Cart indicator in the app bar
+          Consumer<Cart>(
+            builder: (context, cart, child) {
+              return Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.shopping_cart),
+                    const SizedBox(width: 4),
+                    Text('${cart.totalItems}'),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Order Summary",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Consumer<Cart>(
+          builder: (context, cart, child) {
+            final List<Widget> children = [];
 
-            // List of cart items
-            Expanded(
-              child: ListView(
-                children: widget.cart.items.map((cartItem) {
-                  final linePrice = widget.cart.calculatePriceFor(cartItem);
+            // Title
+            children.add(const Text('Order Summary', style: heading2));
+            children.add(const SizedBox(height: 20));
 
-                  return ListTile(
-                    title: Text(
-                        "${cartItem.quantity} × ${cartItem.sandwich.type}"),
-                    subtitle: Text(
-                      "${cartItem.sandwich.isFootlong ? "Footlong" : "Six-inch"} • "
-                      "${cartItem.sandwich.breadType}",
+            // One row per cart line
+            for (final entry in cart.items) {
+              final Sandwich sandwich = entry.sandwich;
+              final int quantity = entry.quantity;
+              final double itemPrice = _calculateItemPrice(sandwich, quantity);
+
+              children.add(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${quantity}x ${sandwich.name}',
+                      style: normalText,
                     ),
-                    trailing: Text("£${linePrice.toStringAsFixed(2)}"),
-                  );
-                }).toList(),
+                    Text(
+                      '£${itemPrice.toStringAsFixed(2)}',
+                      style: normalText,
+                    ),
+                  ],
+                ),
+              );
+              children.add(const SizedBox(height: 8));
+            }
+
+            children.add(const Divider());
+            children.add(const SizedBox(height: 10));
+
+            // Total row
+            children.add(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total:', style: heading2),
+                  Text(
+                    '£${cart.totalPrice.toStringAsFixed(2)}',
+                    style: heading2,
+                  ),
+                ],
               ),
-            ),
+            );
 
-            const SizedBox(height: 12),
+            children.add(const SizedBox(height: 40));
 
-            // Total
-            Text(
-              "Total: £${widget.cart.totalPrice.toStringAsFixed(2)}",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            // Fake payment method text
+            children.add(
+              const Text(
+                'Payment Method: Card ending in 1234',
+                style: normalText,
+                textAlign: TextAlign.center,
+              ),
+            );
 
-            const SizedBox(height: 20),
+            children.add(const SizedBox(height: 20));
 
-            // Confirm button / loader
-            Center(
-              child: isProcessing
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _confirmPayment,
-                      child: const Text("Confirm Payment"),
-                    ),
-            ),
-          ],
+            if (_isProcessing) {
+              // Show loader while processing
+              children.add(
+                const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+              children.add(const SizedBox(height: 20));
+              children.add(
+                const Text(
+                  'Processing payment...',
+                  style: normalText,
+                  textAlign: TextAlign.center,
+                ),
+              );
+            } else {
+              // Confirm button
+              children.add(
+                ElevatedButton(
+                  onPressed: _processPayment,
+                  child: const Text('Confirm Payment', style: normalText),
+                ),
+              );
+            }
+
+            return Column(
+              children: children,
+            );
+          },
         ),
       ),
     );
