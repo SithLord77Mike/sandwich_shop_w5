@@ -5,6 +5,7 @@ import 'package:sandwich_shop/models/sandwich.dart';
 import 'package:sandwich_shop/models/cart.dart';
 import 'views/checkout_screen.dart';
 import 'views/profile_screen.dart';
+import 'package:sandwich_shop/views/common_widgets.dart';
 
 void main() {
   runApp(const App());
@@ -192,36 +193,9 @@ class _OrderScreenState extends State<OrderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            SizedBox(
-              height: 40,
-              child: Image.asset('assets/images/logo.png'),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Sandwich Counter',
-              style: heading1,
-            ),
-          ],
-        ),
+      appBar: SandwichAppBar(
+        title: 'Sandwich Counter',
         actions: [
-          Consumer<Cart>(
-            builder: (context, cart, child) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.shopping_cart),
-                    const SizedBox(width: 4),
-                    Text('${cart.totalItems}'),
-                  ],
-                ),
-              );
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.shopping_cart),
             onPressed: () {
@@ -242,8 +216,6 @@ class _OrderScreenState extends State<OrderScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 16),
-
-              // 🔹 THIS IS THE FIXED HEADER THAT UPDATES WHEN CART CHANGES
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Consumer<Cart>(
@@ -261,9 +233,7 @@ class _OrderScreenState extends State<OrderScreen> {
                   },
                 ),
               ),
-
               const SizedBox(height: 12),
-
               if (_confirmationMessage != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -281,66 +251,40 @@ class _OrderScreenState extends State<OrderScreen> {
                     ),
                   ),
                 ),
-
               const SizedBox(height: 20),
-
               SizedBox(
                 height: 300,
-                child: Image.asset(
-                  _getCurrentImagePath(),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Text(
-                        'Image not found',
-                        style: normalText,
-                      ),
-                    );
-                  },
-                ),
+                child: Image.asset(_getCurrentImagePath(), fit: BoxFit.cover),
               ),
               const SizedBox(height: 20),
-
               DropdownMenu<SandwichType>(
                 width: double.infinity,
                 label: const Text('Sandwich Type'),
-                textStyle: normalText,
                 initialSelection: _selectedSandwichType,
                 onSelected: _onSandwichTypeChanged,
                 dropdownMenuEntries: _buildSandwichTypeEntries(),
               ),
-
               const SizedBox(height: 20),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Six-inch', style: normalText),
-                  Switch(
-                    value: _isFootlong,
-                    onChanged: _onSizeChanged,
-                  ),
+                  Switch(value: _isFootlong, onChanged: _onSizeChanged),
                   const Text('Footlong', style: normalText),
                 ],
               ),
-
               const SizedBox(height: 20),
-
               DropdownMenu<BreadType>(
                 width: double.infinity,
                 label: const Text('Bread Type'),
-                textStyle: normalText,
                 initialSelection: _selectedBreadType,
                 onSelected: _onBreadTypeChanged,
                 dropdownMenuEntries: _buildBreadTypeEntries(),
               ),
-
               const SizedBox(height: 20),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Quantity: ', style: normalText),
                   IconButton(
                     onPressed: _getDecreaseCallback(),
                     icon: const Icon(Icons.remove),
@@ -352,21 +296,7 @@ class _OrderScreenState extends State<OrderScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: TextField(
-                  controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Add a note (e.g., no onions)',
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
               Center(
                 child: StyledButton(
                   onPressed: _getAddToCartCallback(),
@@ -375,30 +305,9 @@ class _OrderScreenState extends State<OrderScreen> {
                   backgroundColor: Colors.green,
                 ),
               ),
-
               const SizedBox(height: 16),
-
               Center(
                 child: StyledButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CartScreen(),
-                      ),
-                    );
-                  },
-                  icon: Icons.shopping_cart,
-                  label: 'View Cart',
-                  backgroundColor: Colors.blue,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Center(
-                child: StyledButton(
-                  key: const Key('profile_nav_button'),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -412,48 +321,10 @@ class _OrderScreenState extends State<OrderScreen> {
                   backgroundColor: Colors.purple,
                 ),
               ),
-
               const SizedBox(height: 20),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class StyledButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  final IconData icon;
-  final String label;
-  final Color backgroundColor;
-
-  const StyledButton({
-    super.key,
-    required this.onPressed,
-    required this.icon,
-    required this.label,
-    required this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ButtonStyle myButtonStyle = ElevatedButton.styleFrom(
-      backgroundColor: backgroundColor,
-      foregroundColor: Colors.white,
-      textStyle: normalText,
-    );
-
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: myButtonStyle,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
       ),
     );
   }
@@ -466,21 +337,16 @@ class _AppDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Drawer(
       child: ListView(
-        padding: EdgeInsets.zero,
         children: [
           const DrawerHeader(
             decoration: BoxDecoration(color: Colors.green),
-            child: Text(
-              'Sandwich Shop',
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
+            child: Text('Sandwich Shop',
+                style: TextStyle(color: Colors.white, fontSize: 24)),
           ),
           ListTile(
             leading: const Icon(Icons.home),
             title: const Text('Order'),
-            onTap: () {
-              Navigator.pop(context);
-            },
+            onTap: () => Navigator.pop(context),
           ),
           ListTile(
             leading: const Icon(Icons.shopping_cart),
@@ -491,19 +357,6 @@ class _AppDrawer extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const CartScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Profile'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProfileScreen(),
                 ),
               );
             },
@@ -527,10 +380,7 @@ class _CartScreenState extends State<CartScreen> {
 
     if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Your cart is empty'),
-          duration: Duration(seconds: 2),
-        ),
+        const SnackBar(content: Text('Your cart is empty')),
       );
       return;
     }
@@ -544,83 +394,27 @@ class _CartScreenState extends State<CartScreen> {
 
     if (result != null && mounted) {
       cart.clear();
-
-      final String orderId = result['orderId'] as String;
-      final String estimatedTime = result['estimatedTime'] as String;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Order $orderId confirmed! Estimated time: $estimatedTime'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-
-      Navigator.pop(context); // back to order screen
+      Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Cart'),
-      ),
-      drawer: const _AppDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Consumer<Cart>(
-          builder: (context, cart, child) {
-            final cartItems = cart.items;
-
-            return Column(
-              children: [
-                Expanded(
-                  child: cartItems.isEmpty
-                      ? const Center(
-                          child: Text('Your cart is empty'),
-                        )
-                      : ListView.builder(
-                          itemCount: cartItems.length,
-                          itemBuilder: (context, index) {
-                            final item = cartItems[index];
-                            final price = cart.calculatePriceFor(item);
-
-                            return ListTile(
-                              title: Text(
-                                '${item.quantity} × ${item.sandwich.type}',
-                              ),
-                              subtitle: Text(
-                                '${item.sandwich.isFootlong ? 'Footlong' : 'Six-inch'} • ${item.sandwich.breadType}',
-                              ),
-                              trailing: Text(
-                                '£${price.toStringAsFixed(2)}',
-                              ),
-                            );
-                          },
-                        ),
-                ),
-                const SizedBox(height: 20),
-                StyledButton(
-                  onPressed: cart.items.isEmpty ? null : _navigateToCheckout,
-                  icon: Icons.payment,
-                  label: 'Checkout',
-                  backgroundColor: Colors.orange,
-                ),
-                const SizedBox(height: 20),
-                StyledButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  icon: Icons.arrow_back,
-                  label: 'Back to Order',
-                  backgroundColor: Colors.blue,
-                ),
-              ],
-            );
-          },
-        ),
+      appBar: const SandwichAppBar(title: 'Your Cart'),
+      body: Consumer<Cart>(
+        builder: (context, cart, child) {
+          return ListView(
+            children: cart.items
+                .map(
+                  (item) => ListTile(
+                    title: Text(item.sandwich.name),
+                    trailing: Text('x${item.quantity}'),
+                  ),
+                )
+                .toList(),
+          );
+        },
       ),
     );
   }
